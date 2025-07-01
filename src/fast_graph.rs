@@ -24,7 +24,7 @@ use crate::constants::Weight;
 use crate::constants::{EdgeId, NodeId, INVALID_EDGE};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[cfg_attr(feature = "rkyv", derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize))]
+#[cfg_attr(feature = "rkyv", derive(rkyv::Archive))]
 pub struct FastGraph {
     num_nodes: usize,
     pub(crate) ranks: Vec<usize>,
@@ -160,7 +160,7 @@ impl FastGraphLike for ArchivedFastGraph {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
-#[cfg_attr(feature = "rkyv", derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize))]
+#[cfg_attr(feature = "rkyv", derive(rkyv::Archive))]
 pub struct FastGraphEdge {
     // todo: the base_node is 'redundant' for the routing query so to say, but makes the implementation easier for now
     // and can still be removed at a later time, we definitely need this information on original
