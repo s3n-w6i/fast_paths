@@ -109,7 +109,7 @@ impl FastGraphLike for FastGraph {
 
 #[cfg(feature = "rkyv")]
 impl ArchivedFastGraph {
-    unsafe fn from_bytes(bytes: &[u8]) -> &Self {
+    pub unsafe fn from_bytes(bytes: &[u8]) -> &Self {
         rkyv::access_unchecked::<ArchivedFastGraph>(bytes)
     }
 }
