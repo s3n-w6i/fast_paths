@@ -108,6 +108,13 @@ impl FastGraphLike for FastGraph {
 }
 
 #[cfg(feature = "rkyv")]
+impl ArchivedFastGraph {
+    unsafe fn from_bytes(bytes: &[u8]) -> &Self {
+        rkyv::access_unchecked::<ArchivedFastGraph>(bytes)
+    }
+}
+
+#[cfg(feature = "rkyv")]
 impl FastGraphLike for ArchivedFastGraph {
     fn get_node_ordering(&self) -> Vec<NodeId> {
         let mut ordering = vec![0; self.ranks.len()];
