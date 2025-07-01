@@ -24,7 +24,7 @@ use crate::constants::INVALID_EDGE;
 use crate::constants::INVALID_NODE;
 use crate::constants::WEIGHT_MAX;
 use crate::constants::{EdgeId, NodeId};
-use crate::fast_graph::{FastGraph, FastGraphLike};
+use crate::fast_graph::{FastGraphLike, FastGraphEdgeLike};
 use crate::heap_item::HeapItem;
 use crate::shortest_path::ShortestPath;
 use crate::valid_flags::ValidFlags;
@@ -54,7 +54,7 @@ impl PathCalculator {
 
     pub fn calc_path(
         &mut self,
-        graph: &FastGraph,
+        graph: &impl FastGraphLike,
         start: NodeId,
         end: NodeId,
     ) -> Option<ShortestPath> {
@@ -63,7 +63,7 @@ impl PathCalculator {
 
     pub fn calc_path_multiple_sources_and_targets(
         &mut self,
-        graph: &FastGraph,
+        graph: &impl FastGraphLike,
         starts: Vec<(NodeId, Weight)>,
         ends: Vec<(NodeId, Weight)>,
     ) -> Option<ShortestPath> {
@@ -140,8 +140,8 @@ impl PathCalculator {
                 let begin = graph.begin_out_edges(curr.node_id);
                 let end = graph.end_out_edges(curr.node_id);
                 for edge_id in begin..end {
-                    let adj = graph.edges_fwd[edge_id].adj_node;
-                    let edge_weight = graph.edges_fwd[edge_id].weight;
+                    let adj = graph.get_out_edge(edge_id).adj_node();
+                    let edge_weight = graph.get_out_edge(edge_id).weight();
                     let weight = curr.weight + edge_weight;
                     if weight < self.get_weight_fwd(adj) {
                         self.update_node_fwd(adj, weight, curr.node_id, edge_id);
@@ -176,8 +176,8 @@ impl PathCalculator {
                 let begin = graph.begin_in_edges(curr.node_id);
                 let end = graph.end_in_edges(curr.node_id);
                 for edge_id in begin..end {
-                    let adj = graph.edges_bwd[edge_id].adj_node;
-                    let edge_weight = graph.edges_bwd[edge_id].weight;
+                    let adj = graph.get_in_edge(edge_id).adj_node();
+                    let edge_weight = graph.get_in_edge(edge_id).weight();
                     let weight = curr.weight + edge_weight;
                     if weight < self.get_weight_bwd(adj) {
                         self.update_node_bwd(adj, weight, curr.node_id, edge_id);
@@ -210,16 +210,16 @@ impl PathCalculator {
         }
     }
 
-    fn is_stallable_fwd(&self, graph: &FastGraph, curr: HeapItem) -> bool {
+    fn is_stallable_fwd(&self, graph: &impl FastGraphLike, curr: HeapItem) -> bool {
         let begin = graph.begin_in_edges(curr.node_id);
         let end = graph.end_in_edges(curr.node_id);
         for edge_id in begin..end {
-            let adj = graph.edges_bwd[edge_id].adj_node;
+            let adj = graph.get_in_edge(edge_id).adj_node();
             let adj_weight = self.get_weight_fwd(adj);
             if adj_weight == WEIGHT_MAX {
                 continue;
             }
-            let edge_weight = graph.edges_bwd[edge_id].weight;
+            let edge_weight = graph.get_in_edge(edge_id).weight();
             if adj_weight + edge_weight < curr.weight {
                 return true;
             }
@@ -227,16 +227,16 @@ impl PathCalculator {
         false
     }
 
-    fn is_stallable_bwd(&self, graph: &FastGraph, curr: HeapItem) -> bool {
+    fn is_stallable_bwd(&self, graph: &impl FastGraphLike, curr: HeapItem) -> bool {
         let begin = graph.begin_out_edges(curr.node_id);
         let end = graph.end_out_edges(curr.node_id);
         for edge_id in begin..end {
-            let adj = graph.edges_fwd[edge_id].adj_node;
+            let adj = graph.get_out_edge(edge_id).adj_node();
             let adj_weight = self.get_weight_bwd(adj);
             if adj_weight == WEIGHT_MAX {
                 continue;
             }
-            let edge_weight = graph.edges_fwd[edge_id].weight;
+            let edge_weight = graph.get_out_edge(edge_id).weight();
             if adj_weight + edge_weight < curr.weight {
                 return true;
             }
@@ -244,7 +244,7 @@ impl PathCalculator {
         false
     }
 
-    fn extract_nodes(&self, graph: &FastGraph, meeting_node: NodeId) -> Vec<NodeId> {
+    fn extract_nodes(&self, graph: &impl FastGraphLike, meeting_node: NodeId) -> Vec<NodeId> {
         assert_ne!(meeting_node, INVALID_NODE);
         assert!(self.valid_flags_fwd.is_valid(meeting_node));
         assert!(self.valid_flags_bwd.is_valid(meeting_node));
@@ -266,69 +266,79 @@ impl PathCalculator {
         result
     }
 
-    fn unpack_fwd(graph: &FastGraph, nodes: &mut Vec<NodeId>, edge_id: EdgeId, reverse: bool) {
-        if !graph.edges_fwd[edge_id].is_shortcut() {
-            nodes.push(graph.edges_fwd[edge_id].base_node);
+    fn unpack_fwd(
+        graph: &impl FastGraphLike,
+        nodes: &mut Vec<NodeId>,
+        edge_id: EdgeId,
+        reverse: bool,
+    ) {
+        if !graph.get_out_edge(edge_id).is_shortcut() {
+            nodes.push(graph.get_out_edge(edge_id).base_node());
             return;
         }
         if reverse {
             PathCalculator::unpack_fwd(
                 graph,
                 nodes,
-                graph.edges_fwd[edge_id].replaced_out_edge,
+                graph.get_out_edge(edge_id).replaced_out_edge(),
                 reverse,
             );
             PathCalculator::unpack_bwd(
                 graph,
                 nodes,
-                graph.edges_fwd[edge_id].replaced_in_edge,
+                graph.get_out_edge(edge_id).replaced_in_edge(),
                 reverse,
             );
         } else {
             PathCalculator::unpack_bwd(
                 graph,
                 nodes,
-                graph.edges_fwd[edge_id].replaced_in_edge,
+                graph.get_out_edge(edge_id).replaced_in_edge(),
                 reverse,
             );
             PathCalculator::unpack_fwd(
                 graph,
                 nodes,
-                graph.edges_fwd[edge_id].replaced_out_edge,
+                graph.get_out_edge(edge_id).replaced_out_edge(),
                 reverse,
             );
         }
     }
 
-    fn unpack_bwd(graph: &FastGraph, nodes: &mut Vec<NodeId>, edge_id: EdgeId, reverse: bool) {
-        if !graph.edges_bwd[edge_id].is_shortcut() {
-            nodes.push(graph.edges_bwd[edge_id].adj_node);
+    fn unpack_bwd(
+        graph: &impl FastGraphLike,
+        nodes: &mut Vec<NodeId>,
+        edge_id: EdgeId,
+        reverse: bool,
+    ) {
+        if !graph.get_in_edge(edge_id).is_shortcut() {
+            nodes.push(graph.get_in_edge(edge_id).adj_node());
             return;
         }
         if reverse {
             PathCalculator::unpack_fwd(
                 graph,
                 nodes,
-                graph.edges_bwd[edge_id].replaced_out_edge,
+                graph.get_in_edge(edge_id).replaced_out_edge(),
                 reverse,
             );
             PathCalculator::unpack_bwd(
                 graph,
                 nodes,
-                graph.edges_bwd[edge_id].replaced_in_edge,
+                graph.get_in_edge(edge_id).replaced_in_edge(),
                 reverse,
             );
         } else {
             PathCalculator::unpack_bwd(
                 graph,
                 nodes,
-                graph.edges_bwd[edge_id].replaced_in_edge,
+                graph.get_in_edge(edge_id).replaced_in_edge(),
                 reverse,
             );
             PathCalculator::unpack_fwd(
                 graph,
                 nodes,
-                graph.edges_bwd[edge_id].replaced_out_edge,
+                graph.get_in_edge(edge_id).replaced_out_edge(),
                 reverse,
             );
         }
@@ -395,9 +405,9 @@ impl Data {
 
 #[cfg(test)]
 mod tests {
-    use crate::fast_graph::FastGraphEdge;
-
     use super::*;
+    use crate::fast_graph::FastGraphEdge;
+    use crate::FastGraph;
 
     #[test]
     fn unpack_fwd_single() {

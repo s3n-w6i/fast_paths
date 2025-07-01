@@ -53,6 +53,8 @@ pub trait FastGraphLike {
     fn get_num_nodes(&self) -> usize;
     fn get_num_out_edges(&self) -> usize;
     fn get_num_in_edges(&self) -> usize;
+    fn get_out_edge(&self, id: EdgeId) -> &impl FastGraphEdgeLike;
+    fn get_in_edge(&self, id: EdgeId) -> &impl FastGraphEdgeLike;
     fn begin_in_edges(&self, node: NodeId) -> usize;
     fn end_in_edges(&self, node: NodeId) -> usize;
     fn begin_out_edges(&self, node: NodeId) -> usize;
@@ -80,6 +82,14 @@ impl FastGraphLike for FastGraph {
         self.edges_bwd.len()
     }
 
+    fn get_out_edge(&self, id: EdgeId) -> &impl FastGraphEdgeLike {
+        &self.edges_fwd[id]
+    }
+
+    fn get_in_edge(&self, id: EdgeId) -> &impl FastGraphEdgeLike {
+        &self.edges_bwd[id]
+    }
+
     fn begin_in_edges(&self, node: NodeId) -> usize {
         self.first_edge_ids_bwd[self.ranks[node]]
     }
@@ -94,6 +104,53 @@ impl FastGraphLike for FastGraph {
 
     fn end_out_edges(&self, node: NodeId) -> usize {
         self.first_edge_ids_fwd[self.ranks[node] + 1]
+    }
+}
+
+#[cfg(feature = "rkyv")]
+impl FastGraphLike for ArchivedFastGraph {
+    fn get_node_ordering(&self) -> Vec<NodeId> {
+        let mut ordering = vec![0; self.ranks.len()];
+        for i in 0..self.ranks.len() {
+            ordering[self.ranks[i].to_native() as usize] = i;
+        }
+        ordering
+    }
+
+    fn get_num_nodes(&self) -> usize {
+        self.num_nodes.to_native() as usize
+    }
+
+    fn get_num_out_edges(&self) -> usize {
+        self.edges_fwd.len()
+    }
+
+    fn get_num_in_edges(&self) -> usize {
+        self.edges_bwd.len()
+    }
+
+    fn get_out_edge(&self, id: EdgeId) -> &impl FastGraphEdgeLike {
+        &self.edges_fwd[id]
+    }
+
+    fn get_in_edge(&self, id: EdgeId) -> &impl FastGraphEdgeLike {
+        &self.edges_bwd[id]
+    }
+
+    fn begin_in_edges(&self, node: NodeId) -> usize {
+        self.first_edge_ids_bwd[self.ranks[node].to_native() as usize].to_native() as usize
+    }
+
+    fn end_in_edges(&self, node: NodeId) -> usize {
+        self.first_edge_ids_bwd[self.ranks[node].to_native() as usize + 1].to_native() as usize
+    }
+
+    fn begin_out_edges(&self, node: NodeId) -> usize {
+        self.first_edge_ids_fwd[self.ranks[node].to_native() as usize].to_native() as usize
+    }
+
+    fn end_out_edges(&self, node: NodeId) -> usize {
+        self.first_edge_ids_fwd[self.ranks[node].to_native() as usize + 1].to_native() as usize
     }
 }
 
@@ -127,13 +184,78 @@ impl FastGraphEdge {
             replaced_out_edge: replaced_edge2,
         }
     }
+}
 
-    pub fn is_shortcut(&self) -> bool {
+pub trait FastGraphEdgeLike {
+    fn is_shortcut(&self) -> bool;
+    fn base_node(&self) -> NodeId;
+    fn adj_node(&self) -> NodeId;
+    fn weight(&self) -> Weight;
+    fn replaced_in_edge(&self) -> EdgeId;
+    fn replaced_out_edge(&self) -> EdgeId;
+}
+
+impl FastGraphEdgeLike for FastGraphEdge {
+    fn is_shortcut(&self) -> bool {
         assert!(
             (self.replaced_in_edge == INVALID_EDGE && self.replaced_out_edge == INVALID_EDGE)
                 || (self.replaced_in_edge != INVALID_EDGE
-                    && self.replaced_out_edge != INVALID_EDGE)
+                && self.replaced_out_edge != INVALID_EDGE)
         );
         self.replaced_in_edge != INVALID_EDGE
+    }
+
+    fn base_node(&self) -> NodeId {
+        self.base_node
+    }
+
+    fn adj_node(&self) -> NodeId {
+        self.adj_node
+    }
+
+    fn weight(&self) -> Weight {
+        self.weight
+    }
+
+    fn replaced_in_edge(&self) -> EdgeId {
+        self.replaced_in_edge
+    }
+
+    fn replaced_out_edge(&self) -> EdgeId {
+        self.replaced_out_edge
+    }
+}
+
+#[cfg(feature = "rkyv")]
+impl FastGraphEdgeLike for ArchivedFastGraphEdge {
+    fn is_shortcut(&self) -> bool {
+        let replaced_in_edge = self.replaced_in_edge.to_native() as usize;
+        let replaced_out_edge = self.replaced_out_edge.to_native() as usize;
+        assert!(
+            (replaced_in_edge == INVALID_EDGE && replaced_out_edge == INVALID_EDGE)
+                || (replaced_in_edge != INVALID_EDGE
+                && replaced_out_edge != INVALID_EDGE)
+        );
+        replaced_in_edge != INVALID_EDGE
+    }
+
+    fn base_node(&self) -> NodeId {
+        self.base_node.to_native() as usize
+    }
+
+    fn adj_node(&self) -> NodeId {
+        self.adj_node.to_native() as usize
+    }
+
+    fn weight(&self) -> Weight {
+        self.weight.to_native() as usize
+    }
+
+    fn replaced_in_edge(&self) -> EdgeId {
+        self.replaced_in_edge.to_native() as usize
+    }
+
+    fn replaced_out_edge(&self) -> EdgeId {
+        self.replaced_out_edge.to_native() as usize
     }
 }

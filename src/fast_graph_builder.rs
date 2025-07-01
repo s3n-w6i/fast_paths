@@ -629,7 +629,7 @@ mod tests {
         targets: Vec<(NodeId, Weight)>,
     ) {
         let fast_path =
-            path_calculator.calc_path_multiple_sources_and_targets(&fast_graph, sources, targets);
+            path_calculator.calc_path_multiple_sources_and_targets(fast_graph, sources, targets);
         assert!(fast_path.is_none(), "there should be no path");
     }
 }
