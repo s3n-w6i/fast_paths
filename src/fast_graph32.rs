@@ -22,7 +22,7 @@ use std::convert::TryFrom;
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::fast_graph::FastGraphEdge;
+use crate::fast_graph::{FastGraphEdge, FastGraphLike};
 use crate::FastGraph;
 
 /// Special graph data-structure that is identical to `FastGraph` except that it uses u32 integers

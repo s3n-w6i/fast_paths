@@ -24,7 +24,7 @@ use priority_queue::PriorityQueue;
 
 use crate::constants::Weight;
 use crate::constants::{EdgeId, NodeId, INVALID_EDGE, INVALID_NODE};
-use crate::fast_graph::FastGraphEdge;
+use crate::fast_graph::{FastGraphEdge, FastGraphLike};
 
 use super::fast_graph::FastGraph;
 use super::input_graph::InputGraph;

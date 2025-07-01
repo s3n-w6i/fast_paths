@@ -24,6 +24,7 @@ use crate::constants::Weight;
 use crate::constants::{EdgeId, NodeId, INVALID_EDGE};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg_attr(feature = "rkyv", derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize))]
 pub struct FastGraph {
     num_nodes: usize,
     pub(crate) ranks: Vec<usize>,
@@ -45,8 +46,21 @@ impl FastGraph {
             first_edge_ids_bwd: vec![0; num_nodes + 1],
         }
     }
+}
 
-    pub fn get_node_ordering(&self) -> Vec<NodeId> {
+pub trait FastGraphLike {
+    fn get_node_ordering(&self) -> Vec<NodeId>;
+    fn get_num_nodes(&self) -> usize;
+    fn get_num_out_edges(&self) -> usize;
+    fn get_num_in_edges(&self) -> usize;
+    fn begin_in_edges(&self, node: NodeId) -> usize;
+    fn end_in_edges(&self, node: NodeId) -> usize;
+    fn begin_out_edges(&self, node: NodeId) -> usize;
+    fn end_out_edges(&self, node: NodeId) -> usize;
+}
+
+impl FastGraphLike for FastGraph {
+    fn get_node_ordering(&self) -> Vec<NodeId> {
         let mut ordering = vec![0; self.ranks.len()];
         for i in 0..self.ranks.len() {
             ordering[self.ranks[i]] = i;
@@ -54,36 +68,37 @@ impl FastGraph {
         ordering
     }
 
-    pub fn get_num_nodes(&self) -> usize {
+    fn get_num_nodes(&self) -> usize {
         self.num_nodes
     }
 
-    pub fn get_num_out_edges(&self) -> usize {
+    fn get_num_out_edges(&self) -> usize {
         self.edges_fwd.len()
     }
 
-    pub fn get_num_in_edges(&self) -> usize {
+    fn get_num_in_edges(&self) -> usize {
         self.edges_bwd.len()
     }
 
-    pub fn begin_in_edges(&self, node: NodeId) -> usize {
+    fn begin_in_edges(&self, node: NodeId) -> usize {
         self.first_edge_ids_bwd[self.ranks[node]]
     }
 
-    pub fn end_in_edges(&self, node: NodeId) -> usize {
+    fn end_in_edges(&self, node: NodeId) -> usize {
         self.first_edge_ids_bwd[self.ranks[node] + 1]
     }
 
-    pub fn begin_out_edges(&self, node: NodeId) -> usize {
+    fn begin_out_edges(&self, node: NodeId) -> usize {
         self.first_edge_ids_fwd[self.ranks[node]]
     }
 
-    pub fn end_out_edges(&self, node: NodeId) -> usize {
+    fn end_out_edges(&self, node: NodeId) -> usize {
         self.first_edge_ids_fwd[self.ranks[node] + 1]
     }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+#[cfg_attr(feature = "rkyv", derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize))]
 pub struct FastGraphEdge {
     // todo: the base_node is 'redundant' for the routing query so to say, but makes the implementation easier for now
     // and can still be removed at a later time, we definitely need this information on original
