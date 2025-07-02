@@ -16,7 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
+#[cfg(feature = "rkyv")]
+use rkyv::util::AlignedVec;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -24,7 +25,7 @@ use crate::constants::Weight;
 use crate::constants::{EdgeId, NodeId, INVALID_EDGE};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[cfg_attr(feature = "rkyv", derive(rkyv::Archive))]
+#[cfg_attr(feature = "rkyv", derive(rkyv::Archive, rkyv::Serialize))]
 pub struct FastGraph {
     num_nodes: usize,
     pub(crate) ranks: Vec<usize>,
@@ -45,6 +46,11 @@ impl FastGraph {
             edges_bwd: vec![],
             first_edge_ids_bwd: vec![0; num_nodes + 1],
         }
+    }
+    
+    #[cfg(feature = "rkyv")]
+    pub fn to_bytes(&self) -> Result<AlignedVec, rkyv::rancor::Error> {
+        rkyv::to_bytes(self)
     }
 }
 
@@ -109,7 +115,7 @@ impl FastGraphLike for FastGraph {
 
 #[cfg(feature = "rkyv")]
 impl ArchivedFastGraph {
-    pub unsafe fn from_bytes(bytes: &[u8]) -> &Self {
+    pub unsafe fn from_bytes_unchecked(bytes: &[u8]) -> &Self {
         rkyv::access_unchecked::<ArchivedFastGraph>(bytes)
     }
 }
@@ -162,7 +168,7 @@ impl FastGraphLike for ArchivedFastGraph {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
-#[cfg_attr(feature = "rkyv", derive(rkyv::Archive))]
+#[cfg_attr(feature = "rkyv", derive(rkyv::Archive, rkyv::Serialize))]
 pub struct FastGraphEdge {
     // todo: the base_node is 'redundant' for the routing query so to say, but makes the implementation easier for now
     // and can still be removed at a later time, we definitely need this information on original

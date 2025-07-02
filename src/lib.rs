@@ -23,6 +23,8 @@ extern crate log;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 pub use crate::constants::*;
+#[cfg(feature = "rkyv")]
+pub use crate::fast_graph::ArchivedFastGraph;
 pub use crate::fast_graph::FastGraph;
 pub use crate::fast_graph32::FastGraph32;
 use crate::fast_graph::FastGraphLike;
