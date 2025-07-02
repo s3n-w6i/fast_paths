@@ -27,7 +27,7 @@ pub use crate::constants::*;
 pub use crate::fast_graph::ArchivedFastGraph;
 pub use crate::fast_graph::FastGraph;
 pub use crate::fast_graph32::FastGraph32;
-use crate::fast_graph::FastGraphLike;
+use crate::fast_graph::{FastGraphEdgeLike, FastGraphLike};
 pub use crate::fast_graph_builder::FastGraphBuilder;
 pub use crate::fast_graph_builder::Params;
 pub use crate::fast_graph_builder::ParamsWithOrder;
@@ -81,7 +81,7 @@ pub fn prepare_with_order_with_params(
 }
 
 /// Calculates the shortest path from `source` to `target`.
-pub fn calc_path(fast_graph: &FastGraph, source: NodeId, target: NodeId) -> Option<ShortestPath> {
+pub fn calc_path(fast_graph: &impl FastGraphLike, source: NodeId, target: NodeId) -> Option<ShortestPath> {
     let mut calc = PathCalculator::new(fast_graph.get_num_nodes());
     calc.calc_path(fast_graph, source, target)
 }
@@ -93,7 +93,7 @@ pub fn calc_path(fast_graph: &FastGraph, source: NodeId, target: NodeId) -> Opti
 /// path returned will be the one that minimizes start_weight + path-weight + target_weight. The
 /// weight of the path also includes start_weight and target_weight.
 pub fn calc_path_multiple_sources_and_targets(
-    fast_graph: &FastGraph,
+    fast_graph: &impl FastGraphLike,
     sources: Vec<(NodeId, Weight)>,
     target: Vec<(NodeId, Weight)>,
 ) -> Option<ShortestPath> {
@@ -104,13 +104,13 @@ pub fn calc_path_multiple_sources_and_targets(
 /// Creates a `PathCalculator` that can be used to run many shortest path calculations in a row.
 /// This is the preferred way to calculate shortest paths in case you are calculating more than
 /// one path. Use one `PathCalculator` for each thread.
-pub fn create_calculator(fast_graph: &FastGraph) -> PathCalculator {
+pub fn create_calculator(fast_graph: &impl FastGraphLike) -> PathCalculator {
     PathCalculator::new(fast_graph.get_num_nodes())
 }
 
 /// Returns the node ordering of a prepared graph. This can be used to run the preparation with
 /// `prepare_with_order()`.
-pub fn get_node_ordering(fast_graph: &FastGraph) -> Vec<NodeId> {
+pub fn get_node_ordering(fast_graph: &impl FastGraphLike) -> Vec<NodeId> {
     fast_graph.get_node_ordering()
 }
 
